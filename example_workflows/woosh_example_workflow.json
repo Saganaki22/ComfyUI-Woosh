@@ -1,0 +1,677 @@
+{
+  "id": "53a80e7b-b99d-4a75-b117-7e9a96d172d0",
+  "revision": 0,
+  "last_node_id": 44,
+  "last_link_id": 54,
+  "nodes": [
+    {
+      "id": 38,
+      "type": "WooshSample",
+      "pos": [
+        -949.1414398775869,
+        474.9606580641662
+      ],
+      "size": [
+        400,
+        272
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "gen_model",
+          "type": "WOOSH_GEN_MODEL",
+          "link": 45
+        },
+        {
+          "name": "text_conditioning",
+          "shape": 7,
+          "type": "WOOSH_TEXT_COND",
+          "link": 46
+        },
+        {
+          "name": "video",
+          "shape": 7,
+          "type": "WOOSH_VIDEO",
+          "link": 47
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_frames",
+          "type": "IMAGE",
+          "links": [
+            48
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            49,
+            50
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "Saganaki22/ComfyUI-Woosh",
+        "ver": "a2523c2d689aff3b0f2e24fa293acc020a08c357",
+        "Node name for S&R": "WooshSample"
+      },
+      "widgets_values": [
+        "dogs barking",
+        50,
+        4.5,
+        2021748607,
+        "randomize",
+        801,
+        false
+      ]
+    },
+    {
+      "id": 7,
+      "type": "WooshLoadFlow",
+      "pos": [
+        -1297.3259561747557,
+        415.2633263723863
+      ],
+      "size": [
+        277.30625,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "gen_model",
+          "type": "WOOSH_GEN_MODEL",
+          "links": [
+            45
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "Saganaki22/ComfyUI-Woosh",
+        "ver": "a2523c2d689aff3b0f2e24fa293acc020a08c357",
+        "Node name for S&R": "WooshLoadFlow"
+      },
+      "widgets_values": [
+        "Woosh-VFlow-8s",
+        "VFlow"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "WooshTextEncode",
+      "pos": [
+        -1313.1796417090798,
+        552.3583612778972
+      ],
+      "size": [
+        313.2223253886775,
+        62.081676569917136
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "text_conditioning",
+          "type": "WOOSH_TEXT_COND",
+          "links": [
+            46
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "Saganaki22/ComfyUI-Woosh",
+        "ver": "a2523c2d689aff3b0f2e24fa293acc020a08c357",
+        "Node name for S&R": "WooshTextEncode"
+      },
+      "widgets_values": [
+        "V2A — video to audio (VFlow/DVFlow)"
+      ]
+    },
+    {
+      "id": 37,
+      "type": "WooshLoadVideo",
+      "pos": [
+        -1306.7349035538907,
+        677.1117936916576
+      ],
+      "size": [
+        302.800048828125,
+        82
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_batch",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 43
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "WOOSH_VIDEO",
+          "links": [
+            47
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "Saganaki22/ComfyUI-Woosh",
+        "ver": "a2523c2d689aff3b0f2e24fa293acc020a08c357",
+        "Node name for S&R": "WooshLoadVideo"
+      },
+      "widgets_values": [
+        "",
+        8
+      ]
+    },
+    {
+      "id": 41,
+      "type": "WooshTextEncode",
+      "pos": [
+        -1391.9144167654124,
+        1493.8875689990157
+      ],
+      "size": [
+        318.06232538867744,
+        65.95369134042471
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "text_conditioning",
+          "type": "WOOSH_TEXT_COND",
+          "links": [
+            52
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "Saganaki22/ComfyUI-Woosh",
+        "ver": "a2523c2d689aff3b0f2e24fa293acc020a08c357",
+        "Node name for S&R": "WooshTextEncode"
+      },
+      "widgets_values": [
+        "T2A — text to audio (Flow/DFlow)"
+      ]
+    },
+    {
+      "id": 39,
+      "type": "WooshSample",
+      "pos": [
+        -1047.5338571645839,
+        1358.9299511893678
+      ],
+      "size": [
+        400,
+        272
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "gen_model",
+          "type": "WOOSH_GEN_MODEL",
+          "link": 51
+        },
+        {
+          "name": "text_conditioning",
+          "shape": 7,
+          "type": "WOOSH_TEXT_COND",
+          "link": 52
+        },
+        {
+          "name": "video",
+          "shape": 7,
+          "type": "WOOSH_VIDEO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_frames",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            54
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "Saganaki22/ComfyUI-Woosh",
+        "ver": "a2523c2d689aff3b0f2e24fa293acc020a08c357",
+        "Node name for S&R": "WooshSample"
+      },
+      "widgets_values": [
+        "thunderstorm and rain",
+        50,
+        4.5,
+        1025217914,
+        "randomize",
+        501,
+        false
+      ]
+    },
+    {
+      "id": 34,
+      "type": "VHS_LoadVideo",
+      "pos": [
+        -1667.694016692532,
+        677.0663388764137
+      ],
+      "size": [
+        348.3212679748535,
+        570.2409509811401
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            43
+          ]
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "2984ec4c4b93292421888f38db74a5e8802a8ff8",
+        "Node name for S&R": "VHS_LoadVideo"
+      },
+      "widgets_values": {
+        "video": "AnimateDiff_00028-audio.mp4",
+        "force_rate": 25,
+        "custom_width": 0,
+        "custom_height": 0,
+        "frame_load_cap": 200,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "format": "AnimateDiff",
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00028-audio.mp4",
+            "type": "input",
+            "format": "video/mp4",
+            "force_rate": 25,
+            "custom_width": 0,
+            "custom_height": 0,
+            "frame_load_cap": 200,
+            "skip_first_frames": 0,
+            "select_every_nth": 1
+          }
+        }
+      }
+    },
+    {
+      "id": 33,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        -531.9260613078748,
+        476.05509140127003
+      ],
+      "size": [
+        441.06156750488276,
+        663.796175628662
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 48
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 50
+        },
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "2984ec4c4b93292421888f38db74a5e8802a8ff8",
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 25,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00033-audio.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 25,
+            "workflow": "AnimateDiff_00033.png",
+            "fullpath": "D:\\ComfyUI_windows_portable_nvidia\\ComfyUI_windows_portable_nvidia_cu128\\ComfyUI_windows_portable\\ComfyUI\\output\\AnimateDiff_00033-audio.mp4"
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "PreviewAudio",
+      "pos": [
+        -944.318667659519,
+        793.1477805430136
+      ],
+      "size": [
+        395.1428674804688,
+        93.24664315795894
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 49
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.18.1",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 44,
+      "type": "MarkdownNote",
+      "pos": [
+        -2217.459193643493,
+        368.4169652313169
+      ],
+      "size": [
+        502.4815136450866,
+        1406.3376199354611
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# Woosh — Sound Effect Generation\n\n  Generate sound effects from text descriptions or video using Sony AI's Woosh foundation model.\n\n  ---\n\n  ## Models\n\n  | Model | Task | VRAM | Steps | CFG |\n  |-------|------|------|-------|-----|\n  | Woosh-Flow | Text-to-Audio | ~8-12GB | 50 | 4.5 |\n  | Woosh-DFlow | Text-to-Audio (distilled) | ~4-6GB | 4 | 1.0 |\n  | Woosh-VFlow | Video-to-Audio | ~8-12GB | 50 | 4.5 |\n  | Woosh-DVFlow | Video-to-Audio (distilled) | ~4-6GB | 4 | 1.0 |\n\n  ---\n\n  ## Manual Download\n\n  Download from [drbaph/Woosh](https://huggingface.co/drbaph/Woosh) and place in `ComfyUI/models/woosh/`:\n\n  ```\n  📂 ComfyUI/\n  ├── 📂 models/\n  │   └── 📂 woosh/\n  │       ├── 📂 Woosh-Flow/   (Base model for T2A)\n  │       │      ├── config.yaml\n  │       │      └── weights.safetensors\n  │       ├── 📂 Woosh-DFlow/  (Distilled model for T2A)\n  │       │      ├── config.yaml\n  │       │      └── weights.safetensors\n  │       ├── 📂 Woosh-VFlow-8s/  (Base model for V2A)\n  │       │      ├── config.yaml\n  │       │      └── weights.safetensors\n  │       ├── 📂 Woosh-DVFlow-8s/  (Distilled model for V2A)\n  │       │      ├── config.yaml\n  │       │      └── weights.safetensors\n  │       ├── 📂 Woosh-AE/ ⚠️ Required\n  │       │      ├── config.yaml\n  │       │      └── weights.safetensors\n  │       ├── 📂 TextConditionerA/ ⚠️ Required\n  │       │      ├── config.yaml\n  │       │      └── weights.safetensors\n  │       └── 📂 TextConditionerV/ ⚠️ Required\n  │              ├── config.yaml\n  │              └── weights.safetensors\n  ```\n\n  > **Woosh-AE, TextConditionerA, and TextConditionerV are required** — all generative models load them internally.\n\n  ---\n\n  ## Nodes\n\n  ### Woosh Model Loader\n  Load generative model — select model checkpoint folder and model type (Flow/DFlow/VFlow/DVFlow). Bundled Woosh\n  library, no pip installs.\n\n  ### Woosh Sampler\n  Generate audio from text and/or video input. Outputs `video_frames` (V2A only) and `audio`. Plug `video_frames` into\n  VideoCombine to see video with audio.\n\n  ### Woosh Video Loader\n  Load video from file path or accept image batch as video input.\n\n  ### Woosh TextConditioning\n  Load external CLAP text conditioner. Set mode to **T2A** for Flow/DFlow or **V2A** for VFlow/DVFlow.\n\n  ---\n\n  ## Sampler Parameters\n\n  | Parameter | Default | Range | Description |\n  |-----------|---------|-------|-------------|\n  | prompt | \"\" | — | Text description of the sound effect |\n  | steps | 50 | 4-100 | Sampling steps. Flow: 50, DFlow: 4 |\n  | cfg | 4.5 | 0-10 | Classifier-free guidance. Flow/VFlow: 4.5, DFlow/DVFlow: 1.0 |\n  | seed | 0 | — | Random seed (0 = random each time) |\n  | latent_frames | 501 | 100-2000 | Audio duration (100 frames ≈ 1s at 48kHz) |\n  | force_offload | False | — | Fully unload model from GPU+CPU RAM after run |\n\n  ---\n\n  ## Tips\n\n  - Use DFlow/DVFlow for fast 4-step generation if quality is acceptable\n  - Enable `force_offload` to free VRAM between runs\n  - Set TextConditioning mode to match your model: **T2A** for text-to-audio, **V2A** for video-to-audio\n  - Install [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) for VideoCombine node to\n   preview video+audio output\n  - First run downloads RoBERTa tokenizer from HuggingFace, cached locally after that\n\n  ---\n\n  ## Links\n\n  - Models [drbaph/Woosh](https://huggingface.co/drbaph/Woosh)\n  - Paper [arXiv:2502.07359](https://arxiv.org/abs/2502.07359)\n  - Original [SonyResearch/Woosh](https://github.com/SonyResearch/Woosh)\n  - Node [ComfyUI-Woosh](https://github.com/Saganaki22/ComfyUI-Woosh)\n  - Issues [Report Bug](https://github.com/Saganaki22/ComfyUI-Woosh/issues)"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 40,
+      "type": "WooshLoadFlow",
+      "pos": [
+        -1364.7718228926853,
+        1355.5465741927453
+      ],
+      "size": [
+        277.30625,
+        82
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "gen_model",
+          "type": "WOOSH_GEN_MODEL",
+          "links": [
+            51
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "Saganaki22/ComfyUI-Woosh",
+        "ver": "a2523c2d689aff3b0f2e24fa293acc020a08c357",
+        "Node name for S&R": "WooshLoadFlow"
+      },
+      "widgets_values": [
+        "Woosh-Flow",
+        "Flow"
+      ]
+    },
+    {
+      "id": 43,
+      "type": "PreviewAudio",
+      "pos": [
+        -615.74921949907,
+        1393.3864478332832
+      ],
+      "size": [
+        270,
+        88
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 54
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.18.1",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      43,
+      34,
+      0,
+      37,
+      0,
+      "IMAGE"
+    ],
+    [
+      45,
+      7,
+      0,
+      38,
+      0,
+      "WOOSH_GEN_MODEL"
+    ],
+    [
+      46,
+      19,
+      0,
+      38,
+      1,
+      "WOOSH_TEXT_COND"
+    ],
+    [
+      47,
+      37,
+      0,
+      38,
+      2,
+      "WOOSH_VIDEO"
+    ],
+    [
+      48,
+      38,
+      0,
+      33,
+      0,
+      "IMAGE"
+    ],
+    [
+      49,
+      38,
+      1,
+      9,
+      0,
+      "AUDIO"
+    ],
+    [
+      50,
+      38,
+      1,
+      33,
+      1,
+      "AUDIO"
+    ],
+    [
+      51,
+      40,
+      0,
+      39,
+      0,
+      "WOOSH_GEN_MODEL"
+    ],
+    [
+      52,
+      41,
+      0,
+      39,
+      1,
+      "WOOSH_TEXT_COND"
+    ],
+    [
+      54,
+      39,
+      1,
+      43,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Video to Audio",
+      "bounding": [
+        -1682.3708663683801,
+        341.66332637238634,
+        1613.978209581489,
+        915.6439634851678
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Text to Audio",
+      "bounding": [
+        -1401.9144167654124,
+        1281.9465741927454,
+        1066.165197266343,
+        381.34416074906324
+      ],
+      "color": "#db8000",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5644739300537774,
+      "offset": [
+        2942.6442090417445,
+        -121.42468319047944
+      ]
+    },
+    "frontendVersion": "1.42.10",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}
