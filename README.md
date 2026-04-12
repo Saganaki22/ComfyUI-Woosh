@@ -8,6 +8,9 @@
 [![ComfyUI Node](https://img.shields.io/badge/ComfyUI-ComfyUI--Woosh-blue)](https://github.com/Saganaki22/ComfyUI-Woosh)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
 
+<img width="1883" height="1265" alt="Screenshot 2026-04-12 010752" src="https://github.com/user-attachments/assets/2cf4db63-bfb6-4d88-a71a-67eaf1b3b960" />
+
+
 ## Features
 
 - **Text-to-Audio** — Generate sound effects from text descriptions (Flow/DFlow)
@@ -17,6 +20,12 @@
 - **Force Offload** — Throw model from GPU+CPU RAM after generation, reloads from disk next run
 - **Video Output** — V2A outputs video frames directly for VideoCombine
 - **No pip install** — Woosh library bundled, zero risk to your torch environment
+
+
+
+https://github.com/user-attachments/assets/243eef4f-8146-465d-b579-217dff4baa2b
+
+
 
 ## Installation
 
