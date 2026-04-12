@@ -162,7 +162,7 @@ class WooshSample:
                     ext_cond = ext_cond.to(device)
 
             cond_dict = {"audio": None, "description": [prompt] * batch_size}
-            if is_v2a:
+            if is_v2a and video is not None:
                 video_frames = video["frames"].to(device)
                 video_rate = video["rate"]
                 features_model = self._get_features_model(device)

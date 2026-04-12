@@ -2,10 +2,10 @@
 
 **Sound effect generation nodes for ComfyUI** — Text-to-audio and video-to-audio using Sony AI's Woosh foundation model.
 
-[![Woosh](https://img.shields.io/badge/Model-Woosh-blue)](https://huggingface.co/drbaph/Woosh)
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Woosh-yellow)](https://huggingface.co/drbaph/Woosh)
 [![arXiv](https://img.shields.io/badge/arXiv-2502.07359-b31b1b)](https://arxiv.org/abs/2502.07359)
-[![GitHub](https://img.shields.io/badge/GitHub-SonyResearch%2FWoosh-black)](https://github.com/SonyResearch/Woosh)
+[![Original Repo](https://img.shields.io/badge/GitHub-SonyResearch%2FWoosh-black)](https://github.com/SonyResearch/Woosh)
+[![ComfyUI Node](https://img.shields.io/badge/ComfyUI-ComfyUI--Woosh-blue)](https://github.com/Saganaki22/ComfyUI-Woosh)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
 
 ## Features
@@ -118,6 +118,9 @@ ComfyUI/models/woosh/
   Woosh-DVFlow-8s/
     config.yaml
     weights.safetensors
+  Woosh-AE/
+    config.yaml
+    weights.safetensors
   TextConditionerA/
     config.yaml
     weights.safetensors
@@ -126,7 +129,7 @@ ComfyUI/models/woosh/
     weights.safetensors
 ```
 
-Each folder must contain `config.yaml` and `weights.safetensors` at the root.
+Each folder must contain `config.yaml` and `weights.safetensors` at the root. **Woosh-AE, TextConditionerA, and TextConditionerV are required** — all generative models reference them internally.
 
 ## VRAM Requirements
 
