@@ -8,7 +8,8 @@
 [![ComfyUI Node](https://img.shields.io/badge/ComfyUI-ComfyUI--Woosh-blue)](https://github.com/Saganaki22/ComfyUI-Woosh)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
 
-<img width="1883" height="1265" alt="Screenshot 2026-04-12 010752" src="https://github.com/user-attachments/assets/2cf4db63-bfb6-4d88-a71a-67eaf1b3b960" />
+<img width="1878" height="1261" alt="Screenshot 2026-04-12 013347" src="https://github.com/user-attachments/assets/60566958-581d-4b77-aa2f-3b39e3b521a4" />
+
 
 
 ## Features
