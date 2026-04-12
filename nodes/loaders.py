@@ -40,29 +40,67 @@ def _get_model_names():
     return sorted(names)
 
 
-def _patch_config_paths(model_dir: str):
-    """Rewrite checkpoints/XXX paths in config.yaml to absolute model paths.
-    Woosh library resolves paths relative to CWD, but ComfyUI stores models
-    in models/woosh/. This patches config.yaml so nested component references
-    (autoencoder, conditioners) resolve correctly.
+def _patch_config_paths_content(content: str) -> str:
+    """Rewrite checkpoint paths in config YAML content to absolute paths.
+
+    Matches both clean relative paths (checkpoints/Name) and stale absolute
+    paths from a previous poisoned run (any .../models/woosh/Name).
+    Always rewrites to the current WOOSH_FOLDER location.
+    """
+    woosh_url = WOOSH_FOLDER.replace("\\", "/")
+
+    def _replace(m):
+        name = m.group("name") or m.group("name2")
+        return f"path: {woosh_url}/{name}"
+
+    # Match: "path: checkpoints/Name" OR "path: <any>/models/woosh/Name"
+    return re.sub(
+        r"path:\s*checkpoints/(?P<name>\S+)|path:\s*\S*/models/woosh/(?P<name2>\S+)",
+        _replace,
+        content,
+    )
+
+
+def _patch_config_paths_temp(model_dir: str):
+    """Temporarily patch config.yaml on disk for loading, return original content.
+
+    The Woosh library reads config.yaml from disk when resolving sub-component
+    paths (autoencoder, conditioners). We must patch the file so those resolve
+    correctly, but we restore the original immediately after loading to prevent
+    poisoning the config with machine-specific absolute paths.
+
+    Returns the original file content (for _restore_config), or None if no
+    patching was needed / the file didn't exist.
     """
     config_file = os.path.join(model_dir, "config.yaml")
     if not os.path.isfile(config_file):
-        return
+        return None
 
     with open(config_file, "r", encoding="utf-8") as f:
-        content = f.read()
+        original = f.read()
 
-    # Replace checkpoints/ModelName with absolute path
-    def _replace(m):
-        name = m.group(1)
-        return os.path.join(WOOSH_FOLDER, name).replace("\\", "/")
+    patched = _patch_config_paths_content(original)
+    if patched == original:
+        return None  # nothing to patch
 
-    patched = re.sub(r"path:\s*checkpoints/(\S+)", lambda m: f"path: {_replace(m)}", content)
-
-    if patched != content:
+    try:
         with open(config_file, "w", encoding="utf-8") as f:
             f.write(patched)
+        return original
+    except OSError:
+        return None
+
+
+def _restore_config(model_dir: str, original_content: str):
+    """Restore original config.yaml after model loading."""
+    if original_content is None:
+        return
+    config_file = os.path.join(model_dir, "config.yaml")
+    try:
+        with open(config_file, "w", encoding="utf-8") as f:
+            f.write(original_content)
+    except OSError:
+        pass
 
 
 # Model type to class mapping
@@ -72,6 +110,20 @@ GEN_MODEL_MAP = {
     "VFlow": ("vflow", VideoKontext),
     "DVFlow": ("dvflow", FlowMapFromPretrained),
 }
+
+
+def _load_model(path: str, model_class):
+    """Load a Woosh model with temporary config path patching.
+
+    Patches config.yaml on disk, loads the model, then restores the original.
+    The try/finally guarantees the original is always restored even on error.
+    """
+    original = _patch_config_paths_temp(path)
+    try:
+        model = model_class(LoadConfig(path=path))
+        return model.eval()
+    finally:
+        _restore_config(path, original)
 
 
 class WooshLoadFlow:
@@ -106,15 +158,11 @@ class WooshLoadFlow:
             self._model.force_unload()
 
         path = _woosh_path(model_name)
-        _patch_config_paths(path)
         _, model_class = GEN_MODEL_MAP[model_type]
-        model = model_class(LoadConfig(path=path))
-        model = model.eval()
+        model = _load_model(path, model_class)
 
         def _reload():
-            _patch_config_paths(path)
-            m = model_class(LoadConfig(path=path))
-            return m.eval()
+            return _load_model(path, model_class)
 
         self._model = WooshModelPatcher(model, vram_size_gb=4.0, reload_fn=_reload)
         self._key = key
