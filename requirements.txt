@@ -7,3 +7,4 @@ einops>=0.8
 av>=16.1
 torchvision
 huggingface_hub
+hear21passt==0.0.26
