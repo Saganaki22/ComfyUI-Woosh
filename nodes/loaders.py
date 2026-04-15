@@ -1,5 +1,6 @@
 """Woosh model loaders — consolidated."""
 
+import logging
 import os
 import re
 import folder_paths
@@ -14,6 +15,8 @@ import comfy.model_management as mm
 
 from ..types import GEN_MODEL
 from .vram import WooshModelPatcher
+
+log = logging.getLogger(__name__)
 
 WOOSH_FOLDER = os.path.join(folder_paths.models_dir, "woosh")
 
@@ -121,9 +124,58 @@ def _load_model(path: str, model_class):
     original = _patch_config_paths_temp(path)
     try:
         model = model_class(LoadConfig(path=path))
-        return model.eval()
+        model = model.eval()
+        _check_text_conditioner(model)
+        return model
     finally:
         _restore_config(path, original)
+
+
+def _check_text_conditioner(model):
+    """Quick sanity check: text conditioner should produce non-trivial embeddings.
+
+    If weights failed to load silently (strict=False fallback), the RoBERTa
+    would produce near-zero or constant outputs, making the model ignore prompts.
+    Only logs when something is wrong — silent on success.
+    """
+    try:
+        raw = model
+        if hasattr(raw, "conditioners"):
+            cond = raw.conditioners
+        else:
+            return
+
+        if "text" not in cond:
+            return
+
+        text_cond = cond["text"]
+        device = next(text_cond.parameters()).device
+
+        with torch.no_grad():
+            batch = {
+                "audio": torch.zeros(1, 1, 16000, device=device),
+                "description": ["test sound effect"],
+            }
+            out = text_cond(batch, no_dropout=True, no_cond=False, device=device)
+            emb = out["text_cond"]
+
+            emb_norm = emb.norm().item()
+            emb_std = emb.std().item()
+
+            if emb_norm < 1e-6:
+                log.error(
+                    "[Woosh] Text conditioner producing near-ZERO embeddings! "
+                    "Weights likely failed to load. Prompts will be ignored. "
+                    "Check that TextConditionerA/weights.safetensors is valid."
+                )
+            elif emb_std < 1e-8:
+                log.error(
+                    "[Woosh] Text conditioner producing CONSTANT embeddings! "
+                    "Weights likely failed to load. Prompts will be ignored. "
+                    "Check that TextConditionerA/weights.safetensors is valid."
+                )
+    except Exception:
+        pass
 
 
 class WooshLoadFlow:

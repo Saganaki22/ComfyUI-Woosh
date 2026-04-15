@@ -33,8 +33,7 @@ def _offload_device():
 
 
 def _dtype():
-    dev = _device()
-    return torch.float32 if dev.type == "mps" else torch.float64
+    return torch.float32
 
 
 def _seed_noise(seed, shape, device):

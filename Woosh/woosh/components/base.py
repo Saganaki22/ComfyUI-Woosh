@@ -523,14 +523,13 @@ class BaseComponent:
         try:
             self.load_state_dict(state_dict, strict=True)
             log.info(f"Loaded state_dict for {type(self).__name__} in strict mode")
-        except RuntimeError as e:
-            if os.environ.get("WOOSH_VERBOSE_LOADING_ERROR", "0") == "1":
-                log.error(
-                    f"Error loading state_dict in strict mode for {type(self).__name__}: {e}"
+        except RuntimeError:
+            result = self.load_state_dict(state_dict, strict=False)
+            if result.missing_keys or result.unexpected_keys:
+                log.warning(
+                    f"[Woosh] Weight loading issue for {type(self).__name__}: "
+                    f"{len(result.missing_keys)} missing, {len(result.unexpected_keys)} unexpected keys"
                 )
-            log.info(f"Error loading state_dict in strict mode: {type(self).__name__}")
-            log.info("Retrying in non-strict mode")
-            self.load_state_dict(state_dict, strict=False)
 
     def _load_from_module_checkpoint(
         self,
