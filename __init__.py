@@ -1,11 +1,16 @@
 """Woosh ComfyUI Custom Nodes — Sound Effect Foundation Model by Sony AI."""
 
+import logging
 import os
 import sys
 import folder_paths
 
 # Add bundled Woosh package to Python path (no pip install needed)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Woosh"))
+
+# Suppress Woosh library INFO logs (Loading config, Loading weights, etc.)
+# Only warnings and errors will show in console
+logging.getLogger("woosh").setLevel(logging.WARNING)
 
 # Register model folder so ComfyUI finds Woosh checkpoints
 WOOSH_FOLDER = os.path.join(folder_paths.models_dir, "woosh")

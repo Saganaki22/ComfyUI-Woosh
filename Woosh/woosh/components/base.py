@@ -513,23 +513,19 @@ class BaseComponent:
 
     def _load_state_dict(self, state_dict):
         """
-        Tries to load_state_dict in strict mode, if it fails, retries in non-strict mode
-        Logs the success or failure of the loading
+        Load state dict with non-strict matching.
 
-        Components that have subcomponents excluded from the checkpoint
-        are expected to fail with strict=True
+        Missing keys are expected when subcomponents (text conditioner, autoencoder)
+        are excluded from the checkpoint and loaded from separate files.
+        Only warn about unexpected keys (keys in checkpoint not in model).
         """
         assert isinstance(self, nn.Module)
-        try:
-            self.load_state_dict(state_dict, strict=True)
-            log.info(f"Loaded state_dict for {type(self).__name__} in strict mode")
-        except RuntimeError:
-            result = self.load_state_dict(state_dict, strict=False)
-            if result.missing_keys or result.unexpected_keys:
-                log.warning(
-                    f"[Woosh] Weight loading issue for {type(self).__name__}: "
-                    f"{len(result.missing_keys)} missing, {len(result.unexpected_keys)} unexpected keys"
-                )
+        result = self.load_state_dict(state_dict, strict=False)
+        if result.unexpected_keys:
+            log.warning(
+                f"[Woosh] Unexpected keys in {type(self).__name__} checkpoint: "
+                f"{len(result.unexpected_keys)} keys not in model"
+            )
 
     def _load_from_module_checkpoint(
         self,
