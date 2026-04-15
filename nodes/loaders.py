@@ -13,7 +13,7 @@ from woosh.model.video_kontext import VideoKontext
 
 import comfy.model_management as mm
 
-from ..types import GEN_MODEL
+from ..woosh_types import GEN_MODEL
 from .vram import WooshModelPatcher
 
 log = logging.getLogger(__name__)

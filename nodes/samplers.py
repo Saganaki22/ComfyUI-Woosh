@@ -14,7 +14,7 @@ from woosh.components.base import LoadConfig
 from woosh.components.clap_conditioners import SFXCLAPTextConditioner
 from woosh.model.flowmap_from_pretrained import FlowMapFromPretrained
 
-from ..types import GEN_MODEL, TEXT_COND, VIDEO, AUDIO
+from ..woosh_types import GEN_MODEL, TEXT_COND, VIDEO, AUDIO
 
 log = logging.getLogger(__name__)
 SAMPLE_RATE = 48000

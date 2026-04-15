@@ -6,7 +6,7 @@ from woosh.utils.videoio import extract_video_frames
 
 import comfy.model_management as mm
 
-from ..types import VIDEO
+from ..woosh_types import VIDEO
 
 
 class WooshLoadVideo:
