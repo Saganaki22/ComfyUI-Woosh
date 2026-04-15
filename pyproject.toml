@@ -1,7 +1,7 @@
 [project]
 name = "ComfyUI-Woosh"
 description = "ComfyUI custom nodes for Woosh Sound Effect Foundation Model by Sony AI — text-to-audio, video-to-audio generation"
-version = "0.1.4"
+version = "0.1.5"
 license = {file = "LICENSE"}
 dependencies = [
     "hydra-core>=1.3",

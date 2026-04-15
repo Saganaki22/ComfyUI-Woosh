@@ -2,7 +2,7 @@ from typing import Annotated, Dict, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field
 import torch
 
-type DictTensor = Dict[str, torch.Tensor]
+DictTensor = Dict[str, torch.Tensor]
 
 
 class MMDiTArgs(BaseModel):
