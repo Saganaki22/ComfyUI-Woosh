@@ -49,12 +49,24 @@ def _woosh_path(name: str) -> str:
     return os.path.join(WOOSH_FOLDER, name)
 
 
-def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, is_distilled):
+def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, is_distilled, video=None):
     woosh_pkg_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Woosh")
     hf_cache = os.path.join(WOOSH_FOLDER, "hf_cache")
     output_path = os.path.join(
         tempfile.gettempdir(), f"woosh_out_{os.getpid()}_{seed}.pt"
     )
+
+    video_path = None
+    video_fps = None
+    cleanup_video = None
+
+    if video is not None:
+        video_path = os.path.join(
+            tempfile.gettempdir(), f"woosh_vid_{os.getpid()}_{seed}.pt"
+        )
+        torch.save(video["frames"].cpu(), video_path)
+        video_fps = video["rate"]
+        cleanup_video = video_path
 
     payload = json.dumps(
         {
@@ -69,6 +81,8 @@ def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, is_dis
             "woosh_pkg_path": woosh_pkg_path,
             "hf_cache": hf_cache,
             "woosh_folder": WOOSH_FOLDER,
+            "video_path": video_path,
+            "video_fps": video_fps,
         }
     )
 
@@ -86,6 +100,8 @@ def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, is_dis
 
     audio = torch.load(output_path, weights_only=True)
     os.unlink(output_path)
+    if cleanup_video is not None:
+        os.unlink(cleanup_video)
     return audio
 
 
@@ -292,7 +308,8 @@ class WooshSample:
                     gen_model.detach()
 
                 audio = _subprocess_infer(
-                    model_dir, prompt, seed, cfg, latent_frames, steps, is_distilled
+                    model_dir, prompt, seed, cfg, latent_frames, steps, is_distilled,
+                    video=video if is_v2a else None,
                 )
             else:
                 if is_patcher:
@@ -303,10 +320,18 @@ class WooshSample:
                     seed, (batch_size, LATENT_CHANNELS, latent_frames), device
                 )
 
+                batch = {"audio": None, "description": [prompt] * batch_size}
+
+                if is_v2a:
+                    features_model = self._get_features_model(device)
+                    with torch.no_grad():
+                        features = features_model(video["frames"], video["rate"])
+                    batch["synch_out"] = features["synch_out"].expand(
+                        batch_size, -1, -1
+                    )
+
                 cond = raw_model.get_cond(
-                    {"audio": None, "description": [prompt] * batch_size},
-                    no_dropout=True,
-                    device=device,
+                    batch, no_dropout=True, device=device,
                 )
 
                 with torch.no_grad():

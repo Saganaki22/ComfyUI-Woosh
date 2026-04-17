@@ -27,6 +27,8 @@ def main():
     woosh_pkg_path = args["woosh_pkg_path"]
     hf_cache = args["hf_cache"]
     woosh_folder = args["woosh_folder"]
+    video_path = args.get("video_path")
+    video_fps = args.get("video_fps")
 
     sys.path.insert(0, woosh_pkg_path)
     os.environ["HF_HOME"] = hf_cache
@@ -77,8 +79,19 @@ def main():
         torch.manual_seed(seed)
         noise = torch.randn(1, 128, latent_frames, device=device)
 
+        batch = {"audio": None, "description": [prompt]}
+
+        if video_path is not None and video_fps is not None:
+            from woosh.utils.video import SynchformerProcessor
+
+            frames = torch.load(video_path, weights_only=True)
+            features_model = SynchformerProcessor(frame_rate=24).eval().to(device)
+            with torch.no_grad():
+                features = features_model(frames, video_fps)
+            batch["synch_out"] = features["synch_out"]
+
         cond = model.get_cond(
-            {"audio": None, "description": [prompt]},
+            batch,
             no_dropout=True,
             device=device,
         )
