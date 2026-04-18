@@ -97,6 +97,9 @@ class SynchformerProcessor(nn.Module):
         video_frames = item["sync_inputs"]
         sync_pts = item["sync_pts"]
 
+        device = next(self.model.parameters()).device
+        video_frames = video_frames.to(device)
+
         out = encode_video_with_sync(
             self.model, video_frames.unsqueeze(0), batch_size=400
         ).squeeze(0)
