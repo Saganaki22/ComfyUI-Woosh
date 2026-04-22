@@ -13,7 +13,9 @@ from comfy.model_patcher import ModelPatcher
 
 from woosh.components.base import LoadConfig
 from woosh.components.clap_conditioners import SFXCLAPTextConditioner
+from woosh.inference.flowmap_sampler import sample_euler
 from woosh.model.flowmap_from_pretrained import FlowMapFromPretrained
+from woosh.model.video_kontext import VideoKontext
 from woosh.utils.video import SynchformerProcessor
 
 from ..woosh_types import GEN_MODEL, TEXT_COND, VIDEO, AUDIO
@@ -49,7 +51,7 @@ def _woosh_path(name: str) -> str:
     return os.path.join(WOOSH_FOLDER, name)
 
 
-def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, is_distilled, video=None):
+def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, model_type, video=None):
     woosh_pkg_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Woosh")
     hf_cache = os.path.join(WOOSH_FOLDER, "hf_cache")
     output_path = os.path.join(
@@ -76,7 +78,8 @@ def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, is_dis
             "cfg": cfg,
             "latent_frames": latent_frames,
             "steps": steps,
-            "is_distilled": is_distilled,
+            "is_distilled": model_type in ("dflow", "dvflow"),
+            "model_type": model_type,
             "output_path": output_path,
             "woosh_pkg_path": woosh_pkg_path,
             "hf_cache": hf_cache,
@@ -276,6 +279,13 @@ class WooshSample:
         is_v2a = video is not None
         is_distilled = isinstance(raw_model, FlowMapFromPretrained)
 
+        if isinstance(raw_model, VideoKontext):
+            model_type = "vflow"
+        elif isinstance(raw_model, FlowMapFromPretrained):
+            model_type = "dvflow" if is_v2a else "dflow"
+        else:
+            model_type = "flow"
+
         if is_distilled and steps > 8:
             log.warning(
                 f"[Woosh] Distilled model (DFlow/DVFlow) maxes out at 8 steps. Clamping {steps} → 8."
@@ -308,7 +318,7 @@ class WooshSample:
                     gen_model.detach()
 
                 audio = _subprocess_infer(
-                    model_dir, prompt, seed, cfg, latent_frames, steps, is_distilled,
+                    model_dir, prompt, seed, cfg, latent_frames, steps, model_type,
                     video=video if is_v2a else None,
                 )
             else:

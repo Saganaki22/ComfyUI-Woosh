@@ -23,6 +23,7 @@ def main():
     latent_frames = args["latent_frames"]
     steps = args["steps"]
     is_distilled = args["is_distilled"]
+    model_type = args["model_type"]
     output_path = args["output_path"]
     woosh_pkg_path = args["woosh_pkg_path"]
     hf_cache = args["hf_cache"]
@@ -63,7 +64,11 @@ def main():
         from woosh.inference.flowmatching_sampler import flowmatching_integrate
         from woosh.inference.flowmap_sampler import sample_euler
 
-        if is_distilled:
+        if model_type == "vflow":
+            from woosh.model.video_kontext import VideoKontext
+
+            model = VideoKontext(LoadConfig(path=model_dir))
+        elif model_type in ("dflow", "dvflow"):
             from woosh.model.flowmap_from_pretrained import FlowMapFromPretrained
 
             model = FlowMapFromPretrained(LoadConfig(path=model_dir))
