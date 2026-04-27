@@ -1,21 +1,18 @@
-import os
-
 import torch
 import torch.nn as nn
 from torchvision.transforms import v2
-from huggingface_hub import hf_hub_download
-from .synchformer import Synchformer, encode_video_with_sync
+from .synchformer import (
+    Synchformer,
+    encode_video_with_sync,
+    resolve_synchformer_state_dict,
+)
 
 # fps for syncformer
 sync_rate = 24
 
 
 def get_synchformer(device="cpu"):
-    ckpt = hf_hub_download(
-        "hkchengrex/MMAudio",
-        filename="synchformer_state_dict.pth",
-        subfolder="ext_weights",
-    )
+    ckpt = resolve_synchformer_state_dict()
     model = Synchformer().eval()
     sd = torch.load(ckpt, weights_only=True, map_location=torch.device(device))
     model.load_state_dict(sd)

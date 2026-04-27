@@ -1,6 +1,7 @@
 # Adapted/Modified from https://github.com/hkchengrex/MMAudio/blob/main/mmaudio/ext/synchformer/motionformer.py
 
 import logging
+import os
 from typing import Any, Mapping
 
 import torch
@@ -22,6 +23,10 @@ import requests
 from tqdm import tqdm
 
 
+HF_REPO_ID = "hkchengrex/MMAudio"
+MMAUDIO_SUBFOLDER = "ext_weights"
+SYNCHFORMER_STATE_DICT = "synchformer_state_dict.pth"
+
 FILE2URL = {
     # cfg
     "motionformer_224_16x4.yaml": "https://raw.githubusercontent.com/facebookresearch/Motionformer/bf43d50/configs/SSV2/motionformer_224_16x4.yaml",
@@ -32,6 +37,108 @@ FILE2URL = {
     "ssv2_joint_224_16x4.pyth": "https://dl.fbaipublicfiles.com/motionformer/ssv2_joint_224_16x4.pyth",
     "ssv2_divided_224_16x4.pyth": "https://dl.fbaipublicfiles.com/motionformer/ssv2_divided_224_16x4.pyth",
 }
+
+
+def _append_unique_path(paths, path):
+    if path is None:
+        return
+    path = Path(path).expanduser()
+    if str(path) and path not in paths:
+        paths.append(path)
+
+
+def _comfy_models_dir():
+    for env_name in (
+        "WOOSH_COMFYUI_MODELS_DIR",
+        "COMFYUI_MODELS_DIR",
+        "COMFYUI_MODEL_DIR",
+    ):
+        value = os.environ.get(env_name)
+        if value:
+            return Path(value).expanduser()
+
+    try:
+        import folder_paths
+    except Exception:
+        return None
+
+    return Path(folder_paths.models_dir).expanduser()
+
+
+def mmaudio_search_dirs():
+    paths = []
+
+    for env_name in ("WOOSH_MMAUDIO_DIR", "MMAUDIO_DIR"):
+        value = os.environ.get(env_name)
+        if value:
+            _append_unique_path(paths, value)
+
+    models_dir = _comfy_models_dir()
+    if models_dir is not None:
+        _append_unique_path(paths, models_dir / "mmaudio")
+
+    current_file = Path(__file__).resolve()
+    if len(current_file.parents) > 3:
+        _append_unique_path(paths, current_file.parents[3] / MMAUDIO_SUBFOLDER)
+    if len(current_file.parents) > 2:
+        _append_unique_path(paths, current_file.parents[2] / MMAUDIO_SUBFOLDER)
+
+    return paths
+
+
+def _local_file_candidates(directory, filename):
+    filename = Path(filename)
+    yield directory / filename
+    if not filename.parts or filename.parts[0] != MMAUDIO_SUBFOLDER:
+        yield directory / MMAUDIO_SUBFOLDER / filename
+
+
+def find_local_mmaudio_file(filename):
+    for directory in mmaudio_search_dirs():
+        for candidate in _local_file_candidates(directory, filename):
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def _preferred_mmaudio_dir():
+    dirs = mmaudio_search_dirs()
+    for directory in dirs:
+        if directory.exists():
+            return directory
+    return dirs[0]
+
+
+def _hf_download_local_dir(target_dir):
+    if target_dir.name == MMAUDIO_SUBFOLDER:
+        return target_dir.parent
+    return target_dir
+
+
+def resolve_mmaudio_config_path(filename):
+    local_path = find_local_mmaudio_file(filename)
+    if local_path is not None:
+        return local_path
+
+    target_dir = _preferred_mmaudio_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return target_dir / filename
+
+
+def resolve_synchformer_state_dict():
+    local_path = find_local_mmaudio_file(SYNCHFORMER_STATE_DICT)
+    if local_path is not None:
+        return str(local_path)
+
+    target_dir = _preferred_mmaudio_dir()
+    local_dir = _hf_download_local_dir(target_dir)
+    local_dir.mkdir(parents=True, exist_ok=True)
+    return hf_hub_download(
+        HF_REPO_ID,
+        filename=SYNCHFORMER_STATE_DICT,
+        subfolder=MMAUDIO_SUBFOLDER,
+        local_dir=str(local_dir),
+    )
 
 
 def check_if_file_exists_else_download(path, fname2link=FILE2URL, chunk_size=1024):
@@ -138,18 +245,7 @@ class MotionFormer(VisionTransformer):
         elif cfg_fname == "joint_224_16x4.yaml":
             pos_emb_type = "joint"
 
-        self.mformer_cfg_path = (
-            Path(
-                hf_hub_download(
-                    "hkchengrex/MMAudio",
-                    filename="synchformer_state_dict.pth",
-                    subfolder="ext_weights",
-                )
-            )
-            .absolute()
-            .parent
-            / cfg_fname
-        )
+        self.mformer_cfg_path = resolve_mmaudio_config_path(cfg_fname).absolute()
 
         check_if_file_exists_else_download(self.mformer_cfg_path, FILE2URL)
         mformer_cfg = OmegaConf.load(self.mformer_cfg_path)
@@ -557,11 +653,7 @@ def encode_video_with_sync(
 # %%
 if __name__ == "__main__":
     model = Synchformer().cuda().eval()
-    ckpt = hf_hub_download(
-        "hkchengrex/MMAudio",
-        filename="synchformer_state_dict.pth",
-        subfolder="ext_weights",
-    )
+    ckpt = resolve_synchformer_state_dict()
     sd = torch.load(ckpt, weights_only=True)
     model.load_state_dict(sd)
 

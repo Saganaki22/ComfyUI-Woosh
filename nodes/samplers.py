@@ -84,6 +84,7 @@ def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, model_
             "woosh_pkg_path": woosh_pkg_path,
             "hf_cache": hf_cache,
             "woosh_folder": WOOSH_FOLDER,
+            "models_dir": folder_paths.models_dir,
             "video_path": video_path,
             "video_fps": video_fps,
         }
@@ -338,11 +339,12 @@ class WooshSample:
                         features = features_model(video["frames"], video["rate"])
                     batch["synch_out"] = features["synch_out"].expand(
                         batch_size, -1, -1
-                    )
+                    ).clone()
 
-                cond = raw_model.get_cond(
-                    batch, no_dropout=True, device=device,
-                )
+                with torch.no_grad():
+                    cond = raw_model.get_cond(
+                        batch, no_dropout=True, device=device,
+                    )
 
                 with torch.no_grad():
                     if is_distilled:

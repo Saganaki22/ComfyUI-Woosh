@@ -28,6 +28,7 @@ def main():
     woosh_pkg_path = args["woosh_pkg_path"]
     hf_cache = args["hf_cache"]
     woosh_folder = args["woosh_folder"]
+    models_dir = args.get("models_dir")
     video_path = args.get("video_path")
     video_fps = args.get("video_fps")
 
@@ -35,6 +36,8 @@ def main():
     os.environ["HF_HOME"] = hf_cache
     os.environ["TRANSFORMERS_CACHE"] = hf_cache
     os.environ["HF_HUB_CACHE"] = os.path.join(hf_cache, "hub")
+    if models_dir:
+        os.environ["WOOSH_COMFYUI_MODELS_DIR"] = models_dir
 
     import logging
 
@@ -93,13 +96,14 @@ def main():
             features_model = SynchformerProcessor(frame_rate=24).eval().to(device)
             with torch.no_grad():
                 features = features_model(frames, video_fps)
-            batch["synch_out"] = features["synch_out"]
+            batch["synch_out"] = features["synch_out"].clone()
 
-        cond = model.get_cond(
-            batch,
-            no_dropout=True,
-            device=device,
-        )
+        with torch.no_grad():
+            cond = model.get_cond(
+                batch,
+                no_dropout=True,
+                device=device,
+            )
 
         with torch.no_grad():
             if is_distilled:

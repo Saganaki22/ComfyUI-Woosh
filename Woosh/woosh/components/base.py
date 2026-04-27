@@ -16,6 +16,39 @@ rank = 0
 # get logger
 log = logging.getLogger(__name__)
 
+_LEGACY_STATE_DICT_KEY_REMAPS = (
+    (
+        "dit.postprocessing.old_postprocessing.",
+        "dit.postprocessing.",
+    ),
+    (
+        "dit.preprocessing.old_preprocessing.old_preprocessing.",
+        "dit.preprocessing.old_preprocessing.",
+    ),
+)
+
+
+def _remap_legacy_state_dict_keys(state_dict):
+    remapped = {}
+    changed_count = 0
+
+    for key, value in state_dict.items():
+        new_key = key
+        for old_prefix, new_prefix in _LEGACY_STATE_DICT_KEY_REMAPS:
+            new_key = new_key.replace(old_prefix, new_prefix)
+
+        if new_key != key:
+            changed_count += 1
+            if new_key in state_dict:
+                continue
+
+        remapped[new_key] = value
+
+    if changed_count == 0:
+        return state_dict, 0
+
+    return remapped, changed_count
+
 
 def _is_load_config(v) -> str:
     """
@@ -520,6 +553,12 @@ class BaseComponent:
         Only warn about unexpected keys (keys in checkpoint not in model).
         """
         assert isinstance(self, nn.Module)
+        state_dict, remapped_count = _remap_legacy_state_dict_keys(state_dict)
+        if remapped_count:
+            log.info(
+                f"[Woosh] Remapped {remapped_count} legacy checkpoint keys "
+                f"for {type(self).__name__}"
+            )
         result = self.load_state_dict(state_dict, strict=False)
         if result.unexpected_keys:
             log.warning(
