@@ -19,12 +19,18 @@ from woosh.model.video_kontext import VideoKontext
 from woosh.utils.video import SynchformerProcessor
 
 from ..woosh_types import GEN_MODEL, TEXT_COND, VIDEO, AUDIO
+from .model_paths import (
+    DEFAULT_WOOSH_FOLDER,
+    get_mmaudio_folders,
+    get_woosh_folders,
+    resolve_woosh_path,
+)
 
 log = logging.getLogger(__name__)
 SAMPLE_RATE = 48000
 LATENT_CHANNELS = 128
 
-WOOSH_FOLDER = os.path.join(folder_paths.models_dir, "woosh")
+WOOSH_FOLDER = DEFAULT_WOOSH_FOLDER
 _WORKER_SCRIPT = os.path.join(os.path.dirname(__file__), "_infer_worker.py")
 
 
@@ -48,7 +54,7 @@ def _normalize_audio(audio):
 
 
 def _woosh_path(name: str) -> str:
-    return os.path.join(WOOSH_FOLDER, name)
+    return resolve_woosh_path(name)
 
 
 def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, model_type, video=None):
@@ -84,6 +90,8 @@ def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, model_
             "woosh_pkg_path": woosh_pkg_path,
             "hf_cache": hf_cache,
             "woosh_folder": WOOSH_FOLDER,
+            "woosh_folders": get_woosh_folders(),
+            "mmaudio_folders": get_mmaudio_folders(),
             "models_dir": folder_paths.models_dir,
             "video_path": video_path,
             "video_fps": video_fps,

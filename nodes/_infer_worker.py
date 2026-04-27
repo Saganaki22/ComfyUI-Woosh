@@ -28,6 +28,8 @@ def main():
     woosh_pkg_path = args["woosh_pkg_path"]
     hf_cache = args["hf_cache"]
     woosh_folder = args["woosh_folder"]
+    woosh_folders = args.get("woosh_folders") or [woosh_folder]
+    mmaudio_folders = args.get("mmaudio_folders") or []
     models_dir = args.get("models_dir")
     video_path = args.get("video_path")
     video_fps = args.get("video_fps")
@@ -38,6 +40,8 @@ def main():
     os.environ["HF_HUB_CACHE"] = os.path.join(hf_cache, "hub")
     if models_dir:
         os.environ["WOOSH_COMFYUI_MODELS_DIR"] = models_dir
+    if mmaudio_folders:
+        os.environ["WOOSH_MMAUDIO_DIRS"] = os.pathsep.join(mmaudio_folders)
 
     import logging
 
@@ -47,11 +51,47 @@ def main():
     with open(config_file, "r", encoding="utf-8") as f:
         original_config = f.read()
 
-    woosh_url = woosh_folder.replace("\\", "/")
+    def _dedupe_paths(paths):
+        seen = set()
+        result = []
+        for path in paths:
+            if not path:
+                continue
+            full = os.path.abspath(os.path.expanduser(path))
+            key = os.path.normcase(full)
+            if key not in seen:
+                seen.add(key)
+                result.append(full)
+        return result
+
+    def _model_root_for_path(path):
+        path = os.path.abspath(path)
+        for root in sorted(_dedupe_paths(woosh_folders), key=len, reverse=True):
+            try:
+                if os.path.commonpath([path, root]) == root:
+                    if path == root:
+                        return os.path.dirname(root)
+                    return root
+            except ValueError:
+                continue
+
+        return os.path.dirname(path)
+
+    model_root = _model_root_for_path(model_dir)
+
+    def _resolve_woosh_path(name):
+        name = os.path.normpath(str(name).replace("\\", os.sep).replace("/", os.sep))
+        roots = _dedupe_paths([model_root, *woosh_folders])
+        for root in roots:
+            candidate = os.path.join(root, name)
+            if os.path.isdir(candidate):
+                return candidate
+        return os.path.join(model_root, name)
 
     def _replace(m):
         name = m.group("name") or m.group("name2")
-        return f"path: {woosh_url}/{name}"
+        path = _resolve_woosh_path(name).replace("\\", "/")
+        return f"path: {path}"
 
     patched = re.sub(
         r"path:\s*checkpoints/(?P<name>\S+)|path:\s*\S*/models/woosh/(?P<name2>\S+)",

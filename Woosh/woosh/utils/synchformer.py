@@ -68,10 +68,25 @@ def _comfy_models_dir():
 def mmaudio_search_dirs():
     paths = []
 
+    for value in os.environ.get("WOOSH_MMAUDIO_DIRS", "").split(os.pathsep):
+        if value:
+            _append_unique_path(paths, value)
+
     for env_name in ("WOOSH_MMAUDIO_DIR", "MMAUDIO_DIR"):
         value = os.environ.get(env_name)
         if value:
             _append_unique_path(paths, value)
+
+    try:
+        import folder_paths
+    except Exception:
+        pass
+    else:
+        try:
+            for path in folder_paths.get_folder_paths("mmaudio"):
+                _append_unique_path(paths, path)
+        except Exception:
+            pass
 
     models_dir = _comfy_models_dir()
     if models_dir is not None:

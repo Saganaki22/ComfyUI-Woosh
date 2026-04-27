@@ -8,10 +8,17 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Woosh"))
 
 import folder_paths
+from .nodes.model_paths import (
+    DEFAULT_MMAUDIO_FOLDER,
+    DEFAULT_WOOSH_FOLDER,
+    list_woosh_model_names,
+)
 
 # Register model folder so ComfyUI finds Woosh checkpoints
-WOOSH_FOLDER = os.path.join(folder_paths.models_dir, "woosh")
+WOOSH_FOLDER = DEFAULT_WOOSH_FOLDER
+MMAUDIO_FOLDER = DEFAULT_MMAUDIO_FOLDER
 folder_paths.add_model_folder_path("woosh", WOOSH_FOLDER)
+folder_paths.add_model_folder_path("mmaudio", MMAUDIO_FOLDER)
 
 # Set HF cache BEFORE transformers is imported by anything.
 # Must happen before the Woosh library or any other node triggers
@@ -67,23 +74,9 @@ def _patch_hf_offline():
 
 _patch_hf_offline()
 
-_HIDDEN_FOLDERS = {"TextConditionerA", "TextConditionerV"}
-
-
 def get_woosh_model_names():
-    """List subdirectories of models/woosh/ — each is a model checkpoint folder."""
-    if not os.path.isdir(WOOSH_FOLDER):
-        return []
-    names = []
-    for entry in os.listdir(WOOSH_FOLDER):
-        full = os.path.join(WOOSH_FOLDER, entry)
-        if (
-            os.path.isdir(full)
-            and os.path.isfile(os.path.join(full, "config.yaml"))
-            and entry not in _HIDDEN_FOLDERS
-        ):
-            names.append(entry)
-    return sorted(names)
+    """List Woosh checkpoint folders from every registered ComfyUI model path."""
+    return list_woosh_model_names()
 
 
 # Import all node mappings

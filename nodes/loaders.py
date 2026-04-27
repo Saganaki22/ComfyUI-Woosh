@@ -3,7 +3,6 @@
 import logging
 import os
 import re
-import folder_paths
 from woosh.components.base import LoadConfig
 from woosh.model.ldm import LatentDiffusionModel
 from woosh.model.flowmap_from_pretrained import FlowMapFromPretrained
@@ -12,11 +11,14 @@ from woosh.model.video_kontext import VideoKontext
 import comfy.model_management as mm
 
 from ..woosh_types import GEN_MODEL
+from .model_paths import (
+    get_model_root_for_path,
+    list_woosh_model_names,
+    resolve_woosh_path,
+)
 from .vram import WooshModelPatcher
 
 log = logging.getLogger(__name__)
-
-WOOSH_FOLDER = os.path.join(folder_paths.models_dir, "woosh")
 
 
 def _device():
@@ -24,39 +26,27 @@ def _device():
 
 
 def _woosh_path(model_name: str) -> str:
-    return os.path.join(WOOSH_FOLDER, model_name)
-
-
-_HIDDEN_FOLDERS = {"TextConditionerA", "TextConditionerV"}
+    return resolve_woosh_path(model_name)
 
 
 def _get_model_names():
-    if not os.path.isdir(WOOSH_FOLDER):
-        return []
-    names = []
-    for entry in os.listdir(WOOSH_FOLDER):
-        full = os.path.join(WOOSH_FOLDER, entry)
-        if (
-            os.path.isdir(full)
-            and os.path.isfile(os.path.join(full, "config.yaml"))
-            and entry not in _HIDDEN_FOLDERS
-        ):
-            names.append(entry)
-    return sorted(names)
+    return list_woosh_model_names()
 
 
-def _patch_config_paths_content(content: str) -> str:
+def _patch_config_paths_content(content: str, preferred_root: str | None = None) -> str:
     """Rewrite checkpoint paths in config YAML content to absolute paths.
 
     Matches both clean relative paths (checkpoints/Name) and stale absolute
     paths from a previous poisoned run (any .../models/woosh/Name).
-    Always rewrites to the current WOOSH_FOLDER location.
+    Rewrites to the resolved model folder, including external ComfyUI model
+    folders registered through extra_model_paths.yaml.
     """
-    woosh_url = WOOSH_FOLDER.replace("\\", "/")
 
     def _replace(m):
         name = m.group("name") or m.group("name2")
-        return f"path: {woosh_url}/{name}"
+        path = resolve_woosh_path(name, preferred_root=preferred_root)
+        path = path.replace("\\", "/")
+        return f"path: {path}"
 
     # Match: "path: checkpoints/Name" OR "path: <any>/models/woosh/Name"
     return re.sub(
@@ -84,7 +74,8 @@ def _patch_config_paths_temp(model_dir: str):
     with open(config_file, "r", encoding="utf-8") as f:
         original = f.read()
 
-    patched = _patch_config_paths_content(original)
+    preferred_root = get_model_root_for_path(model_dir)
+    patched = _patch_config_paths_content(original, preferred_root=preferred_root)
     if patched == original:
         return None  # nothing to patch
 
