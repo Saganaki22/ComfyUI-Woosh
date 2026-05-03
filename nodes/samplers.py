@@ -44,7 +44,7 @@ def _offload_device():
 
 def _seed_noise(seed, shape, device):
     torch.manual_seed(seed)
-    return torch.randn(shape, device=device)
+    return torch.randn(shape, device=device, dtype=torch.float32)
 
 
 def _normalize_audio(audio):

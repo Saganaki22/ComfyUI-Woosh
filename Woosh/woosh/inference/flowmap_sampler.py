@@ -36,7 +36,7 @@ def sample_euler(
     """
     device = noise.device
     batch_size = noise.size(0)
-    cond["cfg"] = cfg * torch.ones((batch_size,), device=device)
+    cond["cfg"] = cfg * torch.ones((batch_size,), device=device, dtype=torch.float32)
 
     # Define renoise schedule
     if isinstance(renoise, (float, int)):
@@ -47,8 +47,8 @@ def sample_euler(
         raise TypeError("renoise must be a float or a list with num_steps values.")
 
     # Define linear step schedule and reshape as (batch_size, num_steps + 1)
-    t_vals = torch.linspace(1, 0, num_steps + 1)
-    t_vals = t_vals.unsqueeze(0).repeat(batch_size, 1).to(device)
+    t_vals = torch.linspace(1, 0, num_steps + 1, device=device, dtype=torch.float32)
+    t_vals = t_vals.unsqueeze(0).repeat(batch_size, 1)
 
     # Denoising steps using Euler
     for i in range(num_steps):

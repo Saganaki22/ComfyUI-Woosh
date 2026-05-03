@@ -14,6 +14,51 @@ import json
 import torch
 
 
+def _worker_device():
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    mps_backend = getattr(torch.backends, "mps", None)
+    if mps_backend is not None and mps_backend.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def _patch_hf_offline(hf_cache):
+    try:
+        from transformers import AutoConfig, RobertaModel, RobertaTokenizer
+    except ImportError:
+        return
+
+    orig_tok = RobertaTokenizer.from_pretrained.__func__
+    orig_cfg = AutoConfig.from_pretrained.__func__
+    orig_model = RobertaModel.from_pretrained.__func__
+
+    def tok(cls, *args, **kwargs):
+        kwargs.setdefault("cache_dir", hf_cache)
+        try:
+            return orig_tok(cls, *args, local_files_only=True, **kwargs)
+        except Exception:
+            return orig_tok(cls, *args, **kwargs)
+
+    def cfg(cls, *args, **kwargs):
+        kwargs.setdefault("cache_dir", hf_cache)
+        try:
+            return orig_cfg(cls, *args, local_files_only=True, **kwargs)
+        except Exception:
+            return orig_cfg(cls, *args, **kwargs)
+
+    def model(cls, *args, **kwargs):
+        kwargs.setdefault("cache_dir", hf_cache)
+        try:
+            return orig_model(cls, *args, local_files_only=True, **kwargs)
+        except Exception:
+            return orig_model(cls, *args, **kwargs)
+
+    RobertaTokenizer.from_pretrained = classmethod(tok)
+    AutoConfig.from_pretrained = classmethod(cfg)
+    RobertaModel.from_pretrained = classmethod(model)
+
+
 def main():
     args = json.loads(sys.argv[1])
     model_dir = args["model_dir"]
@@ -42,6 +87,7 @@ def main():
         os.environ["WOOSH_COMFYUI_MODELS_DIR"] = models_dir
     if mmaudio_folders:
         os.environ["WOOSH_MMAUDIO_DIRS"] = os.pathsep.join(mmaudio_folders)
+    _patch_hf_offline(hf_cache)
 
     import logging
 
@@ -120,12 +166,12 @@ def main():
 
             model = LatentDiffusionModel(LoadConfig(path=model_dir))
 
-        model = model.eval().cuda()
+        model = model.eval().to(_worker_device())
 
         device = next(model.parameters()).device
 
         torch.manual_seed(seed)
-        noise = torch.randn(1, 128, latent_frames, device=device)
+        noise = torch.randn(1, 128, latent_frames, device=device, dtype=torch.float32)
 
         batch = {"audio": None, "description": [prompt]}
 

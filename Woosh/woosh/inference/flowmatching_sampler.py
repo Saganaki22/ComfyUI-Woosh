@@ -93,8 +93,9 @@ def flowmatching_integrate(
         res = res + cfg * (res - res_nc)
         return res
 
-    # t = [0, 1]
-    t = torch.linspace(0, 1, steps=2, device=noise.device)
+    # MPS does not support float64 tensors.
+    time_dtype = torch.float32 if noise.device.type == "mps" else torch.float64
+    t = torch.linspace(0, 1, steps=2, device=noise.device, dtype=time_dtype)
 
     fakes = odeint(f, noise, t, atol=atol, rtol=rtol, method=method, options=fm_kwargs)[-1]
 
