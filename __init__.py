@@ -24,10 +24,11 @@ folder_paths.add_model_folder_path("mmaudio", MMAUDIO_FOLDER)
 # Must happen before the Woosh library or any other node triggers
 # `import transformers` — otherwise HF_HOME is baked to a wrong default.
 _HF_CACHE = os.path.join(WOOSH_FOLDER, "hf_cache")
+_HF_HUB_CACHE = os.path.join(_HF_CACHE, "hub")
 os.makedirs(_HF_CACHE, exist_ok=True)
 os.environ.setdefault("HF_HOME", _HF_CACHE)
-os.environ.setdefault("TRANSFORMERS_CACHE", _HF_CACHE)
-os.environ.setdefault("HF_HUB_CACHE", os.path.join(_HF_CACHE, "hub"))
+os.environ.setdefault("TRANSFORMERS_CACHE", _HF_HUB_CACHE)
+os.environ.setdefault("HF_HUB_CACHE", _HF_HUB_CACHE)
 
 # Suppress Woosh library INFO logs (Loading config, Loading weights, etc.)
 logging.getLogger("woosh").setLevel(logging.WARNING)
@@ -46,26 +47,69 @@ def _patch_hf_offline():
     _orig_cfg = AutoConfig.from_pretrained.__func__
     _orig_model = RobertaModel.from_pretrained.__func__
 
+    cache_dir = _HF_HUB_CACHE if os.path.isdir(_HF_HUB_CACHE) else _HF_CACHE
+
+    def _kwargs(kwargs, *, local_files_only=None, force_download=None):
+        patched = dict(kwargs)
+        patched.setdefault("cache_dir", cache_dir)
+        if local_files_only is not None:
+            patched["local_files_only"] = local_files_only
+        if force_download is not None:
+            patched["force_download"] = force_download
+        return patched
+
+    def _tokenizer_ok(tokenizer):
+        return getattr(tokenizer, "vocab_size", 0) > 1000
+
+    def _config_ok(config):
+        return getattr(config, "hidden_size", 0) > 100
+
     def _tok(cls, *args, **kwargs):
-        kwargs.setdefault("cache_dir", _HF_CACHE)
         try:
-            return _orig_tok(cls, *args, local_files_only=True, **kwargs)
+            tokenizer = _orig_tok(
+                cls, *args, **_kwargs(kwargs, local_files_only=True)
+            )
+            if _tokenizer_ok(tokenizer):
+                return tokenizer
         except Exception:
-            return _orig_tok(cls, *args, **kwargs)
+            pass
+
+        tokenizer = _orig_tok(cls, *args, **_kwargs(kwargs, local_files_only=False))
+        if not _tokenizer_ok(tokenizer):
+            tokenizer = _orig_tok(
+                cls,
+                *args,
+                **_kwargs(kwargs, local_files_only=False, force_download=True),
+            )
+        if not _tokenizer_ok(tokenizer):
+            raise RuntimeError(
+                f"Loaded an invalid RoBERTa tokenizer from {cache_dir}. "
+                "Delete the roberta-large cache folder and let Woosh download it again."
+            )
+        return tokenizer
 
     def _cfg(cls, *args, **kwargs):
-        kwargs.setdefault("cache_dir", _HF_CACHE)
         try:
-            return _orig_cfg(cls, *args, local_files_only=True, **kwargs)
+            config = _orig_cfg(cls, *args, **_kwargs(kwargs, local_files_only=True))
+            if _config_ok(config):
+                return config
         except Exception:
-            return _orig_cfg(cls, *args, **kwargs)
+            pass
+
+        config = _orig_cfg(cls, *args, **_kwargs(kwargs, local_files_only=False))
+        if not _config_ok(config):
+            config = _orig_cfg(
+                cls,
+                *args,
+                **_kwargs(kwargs, local_files_only=False, force_download=True),
+            )
+        return config
 
     def _mdl(cls, *args, **kwargs):
-        kwargs.setdefault("cache_dir", _HF_CACHE)
         try:
-            return _orig_model(cls, *args, local_files_only=True, **kwargs)
+            return _orig_model(cls, *args, **_kwargs(kwargs, local_files_only=True))
         except Exception:
-            return _orig_model(cls, *args, **kwargs)
+            return _orig_model(cls, *args, **_kwargs(kwargs, local_files_only=False))
 
     RobertaTokenizer.from_pretrained = classmethod(_tok)
     AutoConfig.from_pretrained = classmethod(_cfg)

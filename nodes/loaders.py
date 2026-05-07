@@ -99,6 +99,34 @@ def _restore_config(model_dir: str, original_content: str):
         pass
 
 
+def _infer_model_type_from_config(model_dir: str):
+    config_file = os.path.join(model_dir, "config.yaml")
+    if not os.path.isfile(config_file):
+        return None
+
+    top_level = {}
+    with open(config_file, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip() or line.startswith((" ", "\t", "#")):
+                continue
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            top_level[key.strip()] = value.strip()
+
+    if top_level.get("pretrained_model_type") == "videokontext":
+        return "DVFlow"
+    if "pretrained_model_type" in top_level:
+        return "DFlow"
+    if top_level.get("model_type") == "VideoKontextLDM":
+        return "VFlow"
+    if top_level.get("model_type") == "LatentDiffusionModel":
+        return "Flow"
+    if "ldm" in top_level:
+        return "DFlow"
+    return None
+
+
 # Model type to class mapping
 GEN_MODEL_MAP = {
     "Flow": ("flow", LatentDiffusionModel),
@@ -174,8 +202,18 @@ class WooshLoadFlow:
 
         if self._model is not None:
             self._model.force_unload()
+            self._model = None
+            self._key = None
 
         path = _woosh_path(model_name)
+        detected_model_type = _infer_model_type_from_config(path)
+        if detected_model_type is not None and detected_model_type != model_type:
+            raise ValueError(
+                f"Selected model_type '{model_type}' does not match checkpoint '{model_name}' "
+                f"(config looks like '{detected_model_type}'). Select '{detected_model_type}' "
+                "or choose a matching checkpoint folder."
+            )
+
         _, model_class = GEN_MODEL_MAP[model_type]
         model = _load_model(path, model_class)
 

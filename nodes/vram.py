@@ -10,6 +10,20 @@ import comfy.model_management as mm
 from comfy.model_patcher import ModelPatcher
 
 
+def _clear_torch_memory():
+    gc.collect()
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    mps = getattr(torch, "mps", None)
+    if mps is not None and hasattr(mps, "empty_cache"):
+        try:
+            mps.empty_cache()
+        except RuntimeError:
+            pass
+    mm.soft_empty_cache()
+
+
 class WooshModelPatcher(ModelPatcher):
     """ModelPatcher subclass for Woosh models.
 
@@ -75,8 +89,6 @@ class WooshModelPatcher(ModelPatcher):
         """Throw away model from GPU + CPU. Reloads from disk next use."""
         if self.model is not None:
             self.model.to(self.offload_device)
+            del self.model
         self.model = None
-        gc.collect()
-        gc.collect()
-        torch.cuda.empty_cache()
-        mm.soft_empty_cache()
+        _clear_torch_memory()

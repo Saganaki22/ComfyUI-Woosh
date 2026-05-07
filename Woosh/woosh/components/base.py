@@ -16,7 +16,7 @@ rank = 0
 # get logger
 log = logging.getLogger(__name__)
 
-_LEGACY_STATE_DICT_KEY_REMAPS = (
+_VIDEO_KONTEXT_LEGACY_STATE_DICT_KEY_REMAPS = (
     (
         "dit.postprocessing.old_postprocessing.",
         "dit.postprocessing.",
@@ -28,13 +28,27 @@ _LEGACY_STATE_DICT_KEY_REMAPS = (
 )
 
 
-def _remap_legacy_state_dict_keys(state_dict):
+def _legacy_state_dict_key_remaps_for(component):
+    if component is None:
+        return _VIDEO_KONTEXT_LEGACY_STATE_DICT_KEY_REMAPS
+
+    if type(component).__name__ == "VideoKontext":
+        return _VIDEO_KONTEXT_LEGACY_STATE_DICT_KEY_REMAPS
+
+    return ()
+
+
+def _remap_legacy_state_dict_keys(state_dict, component=None):
+    remaps = _legacy_state_dict_key_remaps_for(component)
+    if not remaps:
+        return state_dict, 0
+
     remapped = {}
     changed_count = 0
 
     for key, value in state_dict.items():
         new_key = key
-        for old_prefix, new_prefix in _LEGACY_STATE_DICT_KEY_REMAPS:
+        for old_prefix, new_prefix in remaps:
             new_key = new_key.replace(old_prefix, new_prefix)
 
         if new_key != key:
@@ -553,7 +567,9 @@ class BaseComponent:
         Only warn about unexpected keys (keys in checkpoint not in model).
         """
         assert isinstance(self, nn.Module)
-        state_dict, remapped_count = _remap_legacy_state_dict_keys(state_dict)
+        state_dict, remapped_count = _remap_legacy_state_dict_keys(
+            state_dict, component=self
+        )
         if remapped_count:
             log.info(
                 f"[Woosh] Remapped {remapped_count} legacy checkpoint keys "

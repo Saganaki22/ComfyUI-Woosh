@@ -6,6 +6,7 @@ import json
 import logging
 import subprocess
 import tempfile
+import gc
 import torch
 import folder_paths
 import comfy.model_management as mm
@@ -34,6 +35,20 @@ WOOSH_FOLDER = DEFAULT_WOOSH_FOLDER
 _WORKER_SCRIPT = os.path.join(os.path.dirname(__file__), "_infer_worker.py")
 
 
+def _clear_torch_memory():
+    gc.collect()
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    mps = getattr(torch, "mps", None)
+    if mps is not None and hasattr(mps, "empty_cache"):
+        try:
+            mps.empty_cache()
+        except RuntimeError:
+            pass
+    mm.soft_empty_cache()
+
+
 def _device():
     return mm.get_torch_device()
 
@@ -47,6 +62,11 @@ def _seed_noise(seed, shape, device):
     return torch.randn(shape, device=device, dtype=torch.float32)
 
 
+def _flowmatching_solver_dtype(device):
+    device_type = getattr(device, "type", str(device))
+    return torch.float32 if device_type == "mps" else torch.float64
+
+
 def _normalize_audio(audio):
     peak = audio.abs().amax(dim=-1, keepdim=True)
     peak = torch.clamp(peak, min=1.0)
@@ -57,7 +77,17 @@ def _woosh_path(name: str) -> str:
     return resolve_woosh_path(name)
 
 
-def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, model_type, video=None):
+def _subprocess_infer(
+    model_dir,
+    prompt,
+    seed,
+    cfg,
+    latent_frames,
+    steps,
+    model_type,
+    video=None,
+    text_conditioner_dir=None,
+):
     woosh_pkg_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Woosh")
     hf_cache = os.path.join(WOOSH_FOLDER, "hf_cache")
     output_path = os.path.join(
@@ -95,6 +125,7 @@ def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, model_
             "models_dir": folder_paths.models_dir,
             "video_path": video_path,
             "video_fps": video_fps,
+            "text_conditioner_dir": text_conditioner_dir,
         }
     )
 
@@ -115,6 +146,54 @@ def _subprocess_infer(model_dir, prompt, seed, cfg, latent_frames, steps, model_
     if cleanup_video is not None:
         os.unlink(cleanup_video)
     return audio
+
+
+def _text_conditioner_from_input(text_conditioning):
+    if text_conditioning is None:
+        return None
+    if isinstance(text_conditioning, dict):
+        return text_conditioning.get("conditioner")
+    return None
+
+
+def _component_dir(component):
+    weights_path = getattr(component, "_weights_path", None)
+    if weights_path and os.path.isfile(weights_path):
+        return os.path.dirname(weights_path)
+    return None
+
+
+def _text_conditioner_dir_from_input(text_conditioning, component):
+    if isinstance(text_conditioning, dict):
+        path = text_conditioning.get("path")
+        if path and os.path.isdir(path):
+            return path
+    return _component_dir(component)
+
+
+def _validate_text_conditioner_mode(text_conditioning, model_type):
+    if not isinstance(text_conditioning, dict):
+        return
+
+    mode = text_conditioning.get("mode")
+    if not mode:
+        return
+
+    expected = "V2A" if model_type in ("vflow", "dvflow") else "T2A"
+    if expected not in mode:
+        raise RuntimeError(
+            f"Connected text_conditioning is for {mode}, but this model needs {expected}. "
+            "Use the matching Woosh Text Encode mode, or leave text_conditioning disconnected."
+        )
+
+
+def _release_module(module):
+    if module is None:
+        return
+    try:
+        module.to(_offload_device())
+    except Exception:
+        pass
 
 
 class WooshTextEncode:
@@ -149,7 +228,15 @@ class WooshTextEncode:
     def encode(self, mode):
         key = mode
         if self._model is not None and self._key == key:
-            return ({"conditioner": self._model},)
+            return ({"conditioner": self._model, "path": _component_dir(self._model), "mode": mode},)
+
+        if self._model is not None:
+            old_model = self._model
+            self._model = None
+            self._key = None
+            _release_module(old_model)
+            del old_model
+            _clear_torch_memory()
 
         cond_name = "TextConditionerA" if "T2A" in mode else "TextConditionerV"
         path = _woosh_path(cond_name)
@@ -159,7 +246,7 @@ class WooshTextEncode:
 
         self._model = model
         self._key = key
-        return ({"conditioner": self._model},)
+        return ({"conditioner": self._model, "path": path, "mode": mode},)
 
 
 class WooshSample:
@@ -261,6 +348,15 @@ class WooshSample:
     def __init__(self):
         self._features_model = None
 
+    def _release_features_model(self):
+        if self._features_model is None:
+            return
+        old_model = self._features_model
+        self._features_model = None
+        _release_module(old_model)
+        del old_model
+        _clear_torch_memory()
+
     def _get_features_model(self, device):
         if self._features_model is None:
             self._features_model = SynchformerProcessor(frame_rate=24).eval().to(device)
@@ -287,6 +383,10 @@ class WooshSample:
 
         is_v2a = video is not None
         is_distilled = isinstance(raw_model, FlowMapFromPretrained)
+        text_conditioner = _text_conditioner_from_input(text_conditioning)
+        text_conditioner_dir = _text_conditioner_dir_from_input(
+            text_conditioning, text_conditioner
+        )
 
         if isinstance(raw_model, VideoKontext):
             model_type = "vflow"
@@ -294,6 +394,8 @@ class WooshSample:
             model_type = "dvflow" if is_v2a else "dflow"
         else:
             model_type = "flow"
+
+        _validate_text_conditioner_mode(text_conditioning, model_type)
 
         if is_distilled and steps > 8:
             log.warning(
@@ -307,14 +409,20 @@ class WooshSample:
             latent_frames = 801
 
         mode_label = "subprocess" if subprocess else "in-process"
+        text_label = "external text conditioner" if text_conditioner else "model text conditioner"
         print(
-            f'[Woosh] "{prompt}" | steps={steps} cfg={cfg} seed={seed} frames={latent_frames} [{mode_label}]'
+            f'[Woosh] "{prompt}" | steps={steps} cfg={cfg} seed={seed} frames={latent_frames} [{mode_label}, {text_label}]'
         )
 
         try:
             mm.throw_exception_if_processing_interrupted()
 
             if subprocess:
+                if text_conditioner is not None and text_conditioner_dir is None:
+                    raise RuntimeError(
+                        "External text_conditioning was provided, but its local checkpoint folder could not be determined for subprocess inference."
+                    )
+
                 model_dir = getattr(raw_model, "_weights_path", None)
                 if model_dir is not None and os.path.isfile(model_dir):
                     model_dir = os.path.dirname(model_dir)
@@ -329,6 +437,7 @@ class WooshSample:
                 audio = _subprocess_infer(
                     model_dir, prompt, seed, cfg, latent_frames, steps, model_type,
                     video=video if is_v2a else None,
+                    text_conditioner_dir=text_conditioner_dir,
                 )
             else:
                 if is_patcher:
@@ -349,10 +458,24 @@ class WooshSample:
                         batch_size, -1, -1
                     ).clone()
 
-                with torch.no_grad():
-                    cond = raw_model.get_cond(
-                        batch, no_dropout=True, device=device,
-                    )
+                original_text_conditioner = None
+                if text_conditioner is not None:
+                    if not hasattr(raw_model, "conditioners") or "text" not in raw_model.conditioners:
+                        raise RuntimeError(
+                            "External text_conditioning was provided, but this Woosh model has no text conditioner slot."
+                        )
+                    original_text_conditioner = raw_model.conditioners["text"]
+                    raw_model.conditioners["text"] = text_conditioner.eval().to(device)
+
+                try:
+                    with torch.no_grad():
+                        cond = raw_model.get_cond(
+                            batch, no_dropout=True, device=device,
+                        )
+                finally:
+                    if original_text_conditioner is not None:
+                        raw_model.conditioners["text"] = original_text_conditioner
+                        text_conditioner.to(offload)
 
                 with torch.no_grad():
                     if is_distilled:
@@ -374,7 +497,12 @@ class WooshSample:
                         )
 
                         x_fake = flowmatching_integrate(
-                            raw_model, noise, cond, cfg=cfg, device=device
+                            raw_model,
+                            noise,
+                            cond,
+                            cfg=cfg,
+                            device=device,
+                            dtype=_flowmatching_solver_dtype(device),
                         )
 
                 audio = raw_model.autoencoder.inverse(x_fake)
@@ -390,6 +518,7 @@ class WooshSample:
             if is_patcher:
                 if force_offload:
                     gen_model.force_unload()
+                    self._release_features_model()
                 else:
                     gen_model.detach()
 

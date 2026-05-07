@@ -23,36 +23,84 @@ def _worker_device():
     return torch.device("cpu")
 
 
+def _flowmatching_solver_dtype(device):
+    return torch.float32 if device.type == "mps" else torch.float64
+
+
 def _patch_hf_offline(hf_cache):
     try:
         from transformers import AutoConfig, RobertaModel, RobertaTokenizer
     except ImportError:
         return
 
+    hub_cache = os.path.join(hf_cache, "hub")
+    cache_dir = hub_cache if os.path.isdir(hub_cache) else hf_cache
+
     orig_tok = RobertaTokenizer.from_pretrained.__func__
     orig_cfg = AutoConfig.from_pretrained.__func__
     orig_model = RobertaModel.from_pretrained.__func__
 
+    def _kwargs(kwargs, *, local_files_only=None, force_download=None):
+        patched = dict(kwargs)
+        patched.setdefault("cache_dir", cache_dir)
+        if local_files_only is not None:
+            patched["local_files_only"] = local_files_only
+        if force_download is not None:
+            patched["force_download"] = force_download
+        return patched
+
+    def _tokenizer_ok(tokenizer):
+        return getattr(tokenizer, "vocab_size", 0) > 1000
+
+    def _config_ok(config):
+        return getattr(config, "hidden_size", 0) > 100
+
     def tok(cls, *args, **kwargs):
-        kwargs.setdefault("cache_dir", hf_cache)
         try:
-            return orig_tok(cls, *args, local_files_only=True, **kwargs)
+            tokenizer = orig_tok(
+                cls, *args, **_kwargs(kwargs, local_files_only=True)
+            )
+            if _tokenizer_ok(tokenizer):
+                return tokenizer
         except Exception:
-            return orig_tok(cls, *args, **kwargs)
+            pass
+
+        tokenizer = orig_tok(cls, *args, **_kwargs(kwargs, local_files_only=False))
+        if not _tokenizer_ok(tokenizer):
+            tokenizer = orig_tok(
+                cls,
+                *args,
+                **_kwargs(kwargs, local_files_only=False, force_download=True),
+            )
+        if not _tokenizer_ok(tokenizer):
+            raise RuntimeError(
+                f"Loaded an invalid RoBERTa tokenizer from {cache_dir}. "
+                "Delete the roberta-large cache folder and let Woosh download it again."
+            )
+        return tokenizer
 
     def cfg(cls, *args, **kwargs):
-        kwargs.setdefault("cache_dir", hf_cache)
         try:
-            return orig_cfg(cls, *args, local_files_only=True, **kwargs)
+            config = orig_cfg(cls, *args, **_kwargs(kwargs, local_files_only=True))
+            if _config_ok(config):
+                return config
         except Exception:
-            return orig_cfg(cls, *args, **kwargs)
+            pass
+
+        config = orig_cfg(cls, *args, **_kwargs(kwargs, local_files_only=False))
+        if not _config_ok(config):
+            config = orig_cfg(
+                cls,
+                *args,
+                **_kwargs(kwargs, local_files_only=False, force_download=True),
+            )
+        return config
 
     def model(cls, *args, **kwargs):
-        kwargs.setdefault("cache_dir", hf_cache)
         try:
-            return orig_model(cls, *args, local_files_only=True, **kwargs)
+            return orig_model(cls, *args, **_kwargs(kwargs, local_files_only=True))
         except Exception:
-            return orig_model(cls, *args, **kwargs)
+            return orig_model(cls, *args, **_kwargs(kwargs, local_files_only=False))
 
     RobertaTokenizer.from_pretrained = classmethod(tok)
     AutoConfig.from_pretrained = classmethod(cfg)
@@ -78,11 +126,13 @@ def main():
     models_dir = args.get("models_dir")
     video_path = args.get("video_path")
     video_fps = args.get("video_fps")
+    text_conditioner_dir = args.get("text_conditioner_dir")
 
     sys.path.insert(0, woosh_pkg_path)
     os.environ["HF_HOME"] = hf_cache
-    os.environ["TRANSFORMERS_CACHE"] = hf_cache
-    os.environ["HF_HUB_CACHE"] = os.path.join(hf_cache, "hub")
+    hf_hub_cache = os.path.join(hf_cache, "hub")
+    os.environ["TRANSFORMERS_CACHE"] = hf_hub_cache
+    os.environ["HF_HUB_CACHE"] = hf_hub_cache
     if models_dir:
         os.environ["WOOSH_COMFYUI_MODELS_DIR"] = models_dir
     if mmaudio_folders:
@@ -144,6 +194,35 @@ def main():
         _replace,
         original_config,
     )
+
+    def _override_text_conditioner_path(content, conditioner_dir):
+        if not conditioner_dir:
+            return content
+
+        conditioner_dir = os.path.abspath(conditioner_dir).replace("\\", "/")
+        lines = content.splitlines()
+        stack = []
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+
+            indent = len(line) - len(line.lstrip(" "))
+            while stack and indent <= stack[-1][0]:
+                stack.pop()
+
+            if stripped.endswith(":"):
+                stack.append((indent, stripped[:-1]))
+                continue
+
+            if stripped.startswith("path:"):
+                keys = [key for _, key in stack]
+                if "conditioners" in keys and keys[-1:] == ["text"]:
+                    lines[i] = f"{line[:indent]}path: {conditioner_dir}"
+
+        return "\n".join(lines) + ("\n" if content.endswith("\n") else "")
+
+    patched = _override_text_conditioner_path(patched, text_conditioner_dir)
 
     try:
         with open(config_file, "w", encoding="utf-8") as f:
@@ -207,7 +286,12 @@ def main():
                 )
             else:
                 x_fake = flowmatching_integrate(
-                    model, noise, cond, cfg=cfg, device=device
+                    model,
+                    noise,
+                    cond,
+                    cfg=cfg,
+                    device=device,
+                    dtype=_flowmatching_solver_dtype(device),
                 )
 
         audio = model.autoencoder.inverse(x_fake)

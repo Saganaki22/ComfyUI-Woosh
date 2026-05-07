@@ -62,7 +62,7 @@ pip install -r ComfyUI-Woosh/requirements.txt
 | gen_model | WOOSH_GEN_MODEL | | Loaded generative model |
 | prompt | STRING, multiline | "" | Text description of the sound |
 | steps | INT | 50 | Sampling steps (Flow: 30-100, DFlow: 4) |
-| cfg | FLOAT | 4.5 | Classifier-free guidance (Flow/VFlow: 4.5, DFlow/DVFlow: 1.0) |
+| cfg | FLOAT | 4.5 | Classifier-free guidance (Flow/VFlow: 4.5, DFlow/DVFlow: 3.5) |
 | seed | INT | 0 | Random seed (0 = random each time) |
 | latent_frames | INT | 501 | Audio duration (100 frames ≈ 1s at 48kHz) |
 | force_offload | BOOLEAN | False | Throw away model from GPU+CPU RAM after run |
@@ -102,9 +102,9 @@ pip install -r ComfyUI-Woosh/requirements.txt
 | Type | Task | Steps | CFG | Description |
 |------|------|-------|-----|-------------|
 | **Flow** | Text-to-Audio | 50 | 4.5 | Base model, best quality |
-| **DFlow** | Text-to-Audio | 4 | 1.0 | Distilled Flow, fast generation |
+| **DFlow** | Text-to-Audio | 4 | 3.5 | Distilled Flow, fast generation |
 | **VFlow** | Video-to-Audio | 50 | 4.5 | Base video-to-audio model |
-| **DVFlow** | Video-to-Audio | 4 | 1.0 | Distilled VFlow, fast video-to-audio |
+| **DVFlow** | Video-to-Audio | 4 | 3.5 | Distilled VFlow, fast video-to-audio |
 
 > **Important:** When using the **Woosh TextConditioning** node, set `mode` to match your task:
 > - **T2A** for Flow / DFlow (text-to-audio)
